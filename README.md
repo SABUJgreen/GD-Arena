@@ -9,7 +9,7 @@ Next.js App Router ──HTTP / WebSocket──> FastAPI
                                              │
                             Discussion service + deterministic turn engine
                                              │
-                           Groq (optional) / demo responses
+                           Gemini API (optional) / demo responses
                                              │
                                   MongoDB (optional persistence)
 ```
@@ -18,17 +18,17 @@ Next.js App Router ──HTTP / WebSocket──> FastAPI
 
 - Next.js, TypeScript, Tailwind CSS, Recharts
 - FastAPI, Pydantic, WebSockets
-- Optional Groq API and MongoDB via PyMongo
+- Optional Google Gemini API and MongoDB via PyMongo
 
 ## Run locally
 
-1. Copy `.env.example` to `.env` and adjust values. The app runs in demo mode without Groq or MongoDB.
+1. Copy `.env.example` to `.env` and adjust values. The app runs in demo mode without Gemini API or MongoDB.
 2. Start the backend:
 
 ```bash
 cd backend
 py -3.13 -m venv .venv
-.venv\\Scripts\\activate  # Windows
+.venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
@@ -45,7 +45,7 @@ Open http://localhost:3000. MongoDB is used automatically when `MONGODB_URI` is 
 
 ## Environment variables
 
-See `.env.example`. `GROQ_API_KEY` enables live model responses, and `MONGODB_URI` enables persistence. Never commit `.env`.
+See `.env.example`. `GEMINI_API_KEY` enables live model responses, and `MONGODB_URI` enables persistence. Never commit `.env`.
 
 ## MVP features
 

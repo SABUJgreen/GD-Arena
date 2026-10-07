@@ -12,7 +12,7 @@ handle disagreement, and lead a discussion toward a conclusion.
 
 **Backend:** FastAPI (Python), WebSockets for real-time bi-directional communication.
 
-**Intelligence:** A persona-driven logic layer with an extensible LLM interface (supporting Groq/Llama).
+**Intelligence:** A persona-driven logic layer with an extensible LLM interface (supporting Google Gemini API).
 
 **Persistence:** MongoDB (optional) or a high-performance in-memory repository for session management.
 
@@ -81,6 +81,6 @@ When no LLM API key is provided, the agents operate in **Demo Mode**:
 - **Evaluation:** Uses a heuristic-based scoring algorithm that measures participation and content length/complexity.
 
 ### Live Mode (LLM)
-When a `GROQ_API_KEY` is present:
-- **Dynamic Agents:** Each persona uses a specialized system prompt to generate unique, context-aware responses using Llama 3.1.
-- **AI Evaluation:** The Judge uses a Chain-of-Thought prompt to analyze the nuances of the user's arguments and provide human-like feedback.
+When a `GEMINI_API_KEY` is present:
+- **Dynamic Agents:** Each persona uses a specialized system prompt to generate unique, context-aware responses using Gemini 2.5 Flash.
+- **AI Evaluation:** The Judge uses Gemini with structured JSON output to analyze the nuances of the user's arguments across 9 dimensions and provide detailed feedback.

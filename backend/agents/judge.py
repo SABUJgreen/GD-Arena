@@ -1,3 +1,7 @@
+import json
+from google import genai
+from google.genai import types
+from app.config import settings
 from app.models import Evaluation
 
 
@@ -16,6 +20,39 @@ def choose_topic(category: str, custom_topic: str | None) -> str:
 
 def evaluate(messages) -> Evaluation:
     user_messages = [m for m in messages if m.role == "user"]
+
+    if settings.gemini_api_key:
+        try:
+            client = genai.Client(api_key=settings.gemini_api_key)
+            transcript = "\n".join([f"{m.speaker}: {m.content}" for m in messages])
+            prompt = (
+                "You are an expert GD Judge evaluating candidate 'You' in a group discussion.\n"
+                "Transcript:\n"
+                f"{transcript}\n\n"
+                "Score 'You' from 0-100 on these 9 dimensions: content, reasoning, communication, relevance, critical_thinking, counter_arguments, participation, leadership, conciseness.\n"
+                "Return JSON with: overall_score (int), scores (dict of 9 ints), strengths (list of 2-3 str), weaknesses (list of 2-3 str), recommendations (list of 3 str)."
+            )
+            config = types.GenerateContentConfig(
+                temperature=0.2,
+                response_mime_type="application/json",
+            )
+            res = client.models.generate_content(
+                model=settings.llm_model,
+                contents=prompt,
+                config=config,
+            )
+            if res and res.text:
+                data = json.loads(res.text)
+                return Evaluation(
+                    overall_score=int(data.get("overall_score", 85)),
+                    scores=data.get("scores", {}),
+                    strengths=data.get("strengths", []),
+                    weaknesses=data.get("weaknesses", []),
+                    recommendations=data.get("recommendations", []),
+                )
+        except Exception as e:
+            print(f"[Gemini Judge Error]: {e}")
+
     participation = min(96, 45 + len(user_messages) * 16)
     content = min(94, 60 + sum(len(m.content.split()) > 12 for m in user_messages) * 8)
     scores = {"content": content, "reasoning": min(95, content + 3), "communication": 84, "relevance": 88, "critical_thinking": 81, "counter_arguments": 78, "participation": participation, "leadership": min(92, participation + 2), "conciseness": 86}

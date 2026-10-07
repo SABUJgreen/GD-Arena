@@ -1,4 +1,7 @@
 from dataclasses import dataclass
+from google import genai
+from google.genai import types
+from app.config import settings
 from app.models import Message
 
 
@@ -25,5 +28,33 @@ DEMO_RESPONSES = {
 
 
 def response_for(participant: Participant, topic: str, messages: list[Message], user_text: str = "") -> str:
+    if settings.gemini_api_key:
+        try:
+            client = genai.Client(api_key=settings.gemini_api_key)
+            history_text = "\n".join([f"{m.speaker}: {m.content}" for m in messages[-6:]]) if messages else "Discussion has just begun."
+            prompt = (
+                f"Topic: {topic}\n\n"
+                f"Recent Discussion History:\n{history_text}\n\n"
+                f"Provide {participant.name}'s contribution (2-3 sentences max). Stay strictly in character."
+            )
+            config = types.GenerateContentConfig(
+                system_instruction=(
+                    f"You are {participant.name} in a high-pressure Group Discussion arena. "
+                    f"Your style is: {participant.style}. "
+                    "Be sharp, natural, realistic, and concise (2-4 sentences max). Do not prefix your output with your name."
+                ),
+                temperature=0.7,
+                max_output_tokens=250,
+            )
+            response = client.models.generate_content(
+                model=settings.llm_model,
+                contents=prompt,
+                config=config,
+            )
+            if response and response.text:
+                return response.text.strip()
+        except Exception as e:
+            print(f"[Gemini Agent Error ({participant.name})]: {e}")
+
     context = user_text or (messages[-1].content if messages else topic)
     return f"{DEMO_RESPONSES[participant.name]} In response to that point about {context[:90].rstrip('.')}, the discussion should stay anchored to the question: {topic}."

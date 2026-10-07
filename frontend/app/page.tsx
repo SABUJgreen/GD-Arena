@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3,
   Brain,
+  ChevronDown,
   ChevronRight,
   Clock3,
   LockKeyhole,
@@ -386,7 +387,7 @@ function AuthScreen({
               GD
             </span>
             <span className="font-black text-xl tracking-tight text-white">
-              GD <span className="lime">ARENA</span>
+              ARENA
             </span>
           </button>
           <button onClick={onHome} className="btn btn-ghost text-xs md:text-sm">
@@ -594,7 +595,7 @@ function Nav({
           GD
         </span>
         <span className="font-black text-xl tracking-tight text-white">
-          GD <span className="lime">ARENA</span>
+          ARENA
         </span>
       </button>
 
@@ -603,13 +604,18 @@ function Nav({
           <div className="relative">
             <button
               onClick={() => setOpen(!open)}
-              className="flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs md:text-sm font-semibold text-white hover:border-white/20 transition-all"
+              className="flex items-center gap-2.5 rounded-full border border-slate-700/60 bg-slate-900/90 hover:bg-slate-800/90 hover:border-slate-500/80 px-3 py-1.5 text-xs md:text-sm font-semibold text-slate-100 transition-all shadow-md shadow-black/40 group cursor-pointer backdrop-blur-md antialiased"
             >
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-lime-300 text-xs font-extrabold text-slate-950">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-lime-300 text-xs font-black text-slate-950 shadow-sm shadow-lime-300/30">
                 {initials}
               </span>
-              <span className="max-w-[120px] truncate">{name}</span>
-              <span className="soft text-xs">⌄</span>
+              <span className="max-w-[130px] truncate font-medium text-slate-100">{name}</span>
+              <ChevronDown
+                size={14}
+                className={`text-slate-400 group-hover:text-slate-200 transition-transform duration-200 ${
+                  open ? 'rotate-180 text-lime-400' : ''
+                }`}
+              />
             </button>
 
             <AnimatePresence>

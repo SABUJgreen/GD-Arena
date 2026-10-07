@@ -64,7 +64,7 @@ def current_user(token: str | None):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "mode": "demo" if not settings.groq_api_key else "groq"}
+    return {"status": "ok", "mode": "demo" if not settings.gemini_api_key else "gemini"}
 
 
 @app.post("/api/auth/register")

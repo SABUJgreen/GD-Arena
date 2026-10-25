@@ -18,10 +18,17 @@ def choose_topic(category: str, custom_topic: str | None) -> str:
     return custom_topic.strip() if custom_topic and custom_topic.strip() else TOPICS.get(category, "Does convenience make society more resilient or more dependent?")
 
 
+_CACHED_JUDGE_MODEL = None
+
+
 def evaluate(messages) -> Evaluation:
+    global _CACHED_JUDGE_MODEL
     user_messages = [m for m in messages if m.role == "user"]
 
     if settings.gemini_api_key:
+        models_to_try = [m for m in [_CACHED_JUDGE_MODEL, settings.llm_model, "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"] if m]
+        models_to_try = list(dict.fromkeys(models_to_try))
+
         try:
             client = genai.Client(api_key=settings.gemini_api_key)
             transcript = "\n".join([f"{m.speaker}: {m.content}" for m in messages])
@@ -36,20 +43,25 @@ def evaluate(messages) -> Evaluation:
                 temperature=0.2,
                 response_mime_type="application/json",
             )
-            res = client.models.generate_content(
-                model=settings.llm_model,
-                contents=prompt,
-                config=config,
-            )
-            if res and res.text:
-                data = json.loads(res.text)
-                return Evaluation(
-                    overall_score=int(data.get("overall_score", 85)),
-                    scores=data.get("scores", {}),
-                    strengths=data.get("strengths", []),
-                    weaknesses=data.get("weaknesses", []),
-                    recommendations=data.get("recommendations", []),
-                )
+            for model in models_to_try:
+                try:
+                    res = client.models.generate_content(
+                        model=model,
+                        contents=prompt,
+                        config=config,
+                    )
+                    if res and res.text:
+                        data = json.loads(res.text)
+                        _CACHED_JUDGE_MODEL = model
+                        return Evaluation(
+                            overall_score=int(data.get("overall_score", 85)),
+                            scores=data.get("scores", {}),
+                            strengths=data.get("strengths", []),
+                            weaknesses=data.get("weaknesses", []),
+                            recommendations=data.get("recommendations", []),
+                        )
+                except Exception as model_err:
+                    print(f"[Gemini Judge Warning on model {model}]: {model_err}")
         except Exception as e:
             print(f"[Gemini Judge Error]: {e}")
 

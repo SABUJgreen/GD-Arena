@@ -82,5 +82,5 @@ When no LLM API key is provided, the agents operate in **Demo Mode**:
 
 ### Live Mode (LLM)
 When a `GEMINI_API_KEY` is present:
-- **Dynamic Agents:** Each persona uses a specialized system prompt to generate unique, context-aware responses using Gemini 2.5 Flash.
+- **Dynamic Agents:** Each persona uses a specialized system prompt to generate unique, context-aware responses using Gemini 3.8 Flash.
 - **AI Evaluation:** The Judge uses Gemini with structured JSON output to analyze the nuances of the user's arguments across 9 dimensions and provide detailed feedback.

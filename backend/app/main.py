@@ -4,10 +4,12 @@ import hashlib
 import hmac
 import os
 from datetime import timedelta
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response, Cookie
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response, Cookie, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr, Field
+from google import genai
+from google.genai import types
 from .config import settings
 from .models import DiscussionCreate, Message
 from .repository import repo
@@ -65,6 +67,50 @@ def current_user(token: str | None):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "mode": "demo" if not settings.gemini_api_key else "gemini"}
+
+
+@app.post("/api/speech/transcribe")
+async def transcribe_speech(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        return {"text": ""}
+
+    if settings.gemini_api_key:
+        try:
+            client = genai.Client(api_key=settings.gemini_api_key)
+            mime_type = file.content_type or "audio/webm"
+            if "webm" in mime_type:
+                mime_type = "audio/webm"
+            elif "wav" in mime_type:
+                mime_type = "audio/wav"
+            elif "ogg" in mime_type:
+                mime_type = "audio/ogg"
+            elif "mp4" in mime_type or "m4a" in mime_type:
+                mime_type = "audio/mp4"
+
+            models_to_try = [settings.llm_model, "gemini-3.5-flash-lite", "gemini-3.5-transcribe", "gemini-3.8-flash"]
+            models_to_try = list(dict.fromkeys([m for m in models_to_try if m]))
+
+            for model in models_to_try:
+                try:
+                    res = client.models.generate_content(
+                        model=model,
+                        contents=[
+                            types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                            "Transcribe the user's spoken words in this audio into text accurately for a group discussion arena. Return ONLY the verbatim transcribed spoken words. Do NOT include quotation marks, disclaimers, or explanations. If no speech is heard or if silent, reply with nothing."
+                        ],
+                    )
+                    transcription = (res.text or "").strip().strip('"').strip("'")
+                    cleaned_letters = "".join([c for c in transcription if c.isalpha()])
+                    if not cleaned_letters or transcription in ["[SILENCE]", "[silence]", "None", "No speech detected.", ""]:
+                        return {"text": ""}
+                    return {"text": transcription}
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+    return {"text": ""}
 
 
 @app.post("/api/auth/register")
@@ -136,6 +182,14 @@ async def send_agent(ws: WebSocket, session_id: str, agent_index: int, round_num
     await ws.send_json({"type": "message", "message": message.model_dump(mode="json")})
 
 
+async def wait_for_reading_ack(ws: WebSocket, timeout_seconds: float = 65.0):
+    """Waits for client to finish reading agent thought (60s timer or continue click)."""
+    try:
+        await asyncio.wait_for(ws.receive_json(), timeout=timeout_seconds)
+    except asyncio.TimeoutError:
+        pass
+
+
 @app.websocket("/ws/discussions/{session_id}")
 async def discussion_socket(ws: WebSocket, session_id: str):
     await ws.accept()
@@ -147,8 +201,11 @@ async def discussion_socket(ws: WebSocket, session_id: str):
         for round_number in range(1, 3):
             for agent_index in [0, 1]:
                 await send_agent(ws, session_id, agent_index, round_number)
+                await wait_for_reading_ack(ws, 65.0)
             await ws.send_json({"type": "user_turn", "round": round_number})
             user_payload = await ws.receive_json()
+            while user_payload.get("action") == "reading_done":
+                user_payload = await ws.receive_json()
             content = str(user_payload.get("content", "")).strip()
             if not content: continue
             user_message = Message(speaker="You", role="user", content=content, round=round_number)
@@ -156,8 +213,11 @@ async def discussion_socket(ws: WebSocket, session_id: str):
             await ws.send_json({"type": "message", "message": user_message.model_dump(mode="json")})
             for agent_index in [2, 3]:
                 await send_agent(ws, session_id, agent_index, round_number)
+                await wait_for_reading_ack(ws, 65.0)
             await ws.send_json({"type": "user_turn", "round": round_number})
             user_payload = await ws.receive_json()
+            while user_payload.get("action") == "reading_done":
+                user_payload = await ws.receive_json()
             content = str(user_payload.get("content", "")).strip()
             if content:
                 user_message = Message(speaker="You", role="user", content=content, round=round_number)

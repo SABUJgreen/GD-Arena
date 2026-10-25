@@ -11,10 +11,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#070a14',
+        background: '#f8fafc',
       },
     },
   },
   plugins: [],
 } satisfies Config;
-

@@ -5,18 +5,29 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Award, CheckCircle2, ChevronRight, Copy, Check, MessageSquare, RotateCcw, TrendingUp, Zap, Sparkles } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 
 export default function Results({ evaluation, messages, again }: { evaluation: any; messages: any[]; again: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
-    // Trigger celebratory confetti burst on results load
+    setIsDark(document.documentElement.classList.contains('dark'));
+    const handleTheme = (e: any) => {
+      setIsDark(e.detail === 'dark');
+    };
+    window.addEventListener('gd_theme_change', handleTheme);
+    return () => window.removeEventListener('gd_theme_change', handleTheme);
+  }, []);
+
+  useEffect(() => {
+    // Trigger celebratory multi-colored confetti burst on results load
     try {
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 90,
+        spread: 75,
         origin: { y: 0.6 },
-        colors: ['#a7f65b', '#63a8ff', '#c795ff', '#ffca70']
+        colors: ['#4f46e5', '#7c3aed', '#ec4899', '#3b82f6', '#10b981', '#f59e0b']
       });
     } catch {
       // Ignore if web environment restricts confetti
@@ -52,22 +63,25 @@ export default function Results({ evaluation, messages, again }: { evaluation: a
   };
 
   return (
-    <main className="min-h-screen grid-bg text-slate-100 pb-20">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 border-b border-white/5">
+    <main className="min-h-screen grid-bg text-slate-900 dark:text-slate-100 pb-20">
+      <nav className="w-full flex items-center justify-between px-6 md:px-10 py-4 border-b border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-lime-300 to-emerald-400 font-black text-slate-950 shadow-lg shadow-lime-300/20">
+          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-tr from-indigo-600 via-violet-600 to-fuchsia-500 font-black text-white text-base shadow-md shadow-indigo-500/25">
             GD
           </div>
-          <span className="font-extrabold text-xl tracking-tight">
-            GD <span className="lime">ARENA</span>
+          <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-slate-100">
+            GD <span className="gradient-text-primary">ARENA</span>
           </span>
         </div>
-        <button
-          onClick={again}
-          className="btn btn-ghost text-xs md:text-sm"
-        >
-          <RotateCcw size={16} /> New Session
-        </button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            onClick={again}
+            className="btn btn-ghost text-xs md:text-sm font-bold shadow-sm"
+          >
+            <RotateCcw size={16} className="text-indigo-600 dark:text-indigo-400" /> New Session
+          </button>
+        </div>
       </nav>
 
       <section className="mx-auto max-w-6xl px-6 pt-10">
@@ -77,10 +91,10 @@ export default function Results({ evaluation, messages, again }: { evaluation: a
           className="mb-8 flex flex-wrap items-end justify-between gap-5"
         >
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/10 px-3 py-1 text-xs font-bold uppercase tracking-widest lime">
-              <Sparkles size={13} /> Session Debrief Complete
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/90 dark:bg-indigo-950/50 px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-indigo-700 dark:text-indigo-300 shadow-sm">
+              <Sparkles size={13} className="text-indigo-600 dark:text-indigo-400" /> Session Debrief Complete
             </div>
-            <h1 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl">
+            <h1 className="mt-3 text-4xl font-extrabold tracking-tight md:text-5xl text-slate-900 dark:text-slate-100">
               Your Performance Breakdown
             </h1>
             <p className="soft mt-2 text-base md:text-lg">
@@ -106,48 +120,50 @@ export default function Results({ evaluation, messages, again }: { evaluation: a
           {/* Top Row: Score + Chart */}
           <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
             {/* Score Card */}
-            <motion.div variants={itemVariants} className="glass rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden group">
-              <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-lime-300/10 blur-3xl pointer-events-none group-hover:bg-lime-300/20 transition-all duration-500" />
+            <motion.div variants={itemVariants} className="glass rounded-3xl p-8 flex flex-col justify-between relative overflow-hidden group border border-slate-200/90 dark:border-slate-800 shadow-md">
+              <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-gradient-to-br from-indigo-200/40 to-fuchsia-200/40 dark:from-indigo-600/20 dark:to-fuchsia-600/20 blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider soft">Overall Impact Score</span>
-                  <Award className="lime" size={24} />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Overall Impact Score</span>
+                  <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/60 shadow-sm">
+                    <Award size={22} />
+                  </div>
                 </div>
                 <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-8xl font-black tracking-tight gradient-text-lime">
+                  <span className="text-8xl font-black tracking-tight gradient-text-primary">
                     {evaluation.overall_score}
                   </span>
-                  <span className="text-xl font-bold soft">/ 100</span>
+                  <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">/ 100</span>
                 </div>
-                <p className="mt-2 text-sm text-slate-300 font-medium">
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 font-semibold">
                   {evaluation.overall_score >= 80 ? '🌟 Exceptional contribution & clarity' : evaluation.overall_score >= 60 ? '⚡ Strong foundation with room to expand' : '🎯 Solid start — focused effort will level this up'}
                 </p>
               </div>
 
-              <div className="mt-8 space-y-5 border-t border-white/10 pt-6">
+              <div className="mt-8 space-y-5 border-t border-slate-100 dark:border-slate-800/80 pt-6">
                 <div>
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-400 mb-3">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400 mb-3">
                     <CheckCircle2 size={16} /> Key Strengths
                   </h3>
                   <ul className="space-y-2">
                     {evaluation.strengths?.map((x: string) => (
-                      <li key={x} className="text-xs md:text-sm text-slate-200 flex items-start gap-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-2.5">
-                        <span className="text-emerald-400 font-bold shrink-0">✓</span>
-                        <span>{x}</span>
+                      <li key={x} className="text-xs md:text-sm text-slate-700 dark:text-slate-200 flex items-start gap-2.5 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/70 dark:border-emerald-800/60 rounded-2xl p-3 shadow-xs">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold shrink-0">✓</span>
+                        <span className="font-medium leading-relaxed">{x}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 <div>
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-amber-400 mb-3">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-400 mb-3">
                     <TrendingUp size={16} /> Growth Edge
                   </h3>
                   <ul className="space-y-2">
                     {evaluation.weaknesses?.map((x: string) => (
-                      <li key={x} className="text-xs md:text-sm text-slate-300 flex items-start gap-2 bg-amber-500/5 border border-amber-500/10 rounded-xl p-2.5">
-                        <span className="text-amber-400 font-bold shrink-0">→</span>
-                        <span>{x}</span>
+                      <li key={x} className="text-xs md:text-sm text-slate-700 dark:text-slate-200 flex items-start gap-2.5 bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-800/60 rounded-2xl p-3 shadow-xs">
+                        <span className="text-amber-600 dark:text-amber-400 font-extrabold shrink-0">→</span>
+                        <span className="font-medium leading-relaxed">{x}</span>
                       </li>
                     ))}
                   </ul>
@@ -156,43 +172,44 @@ export default function Results({ evaluation, messages, again }: { evaluation: a
             </motion.div>
 
             {/* Chart Card */}
-            <motion.div variants={itemVariants} className="glass rounded-3xl p-6 flex flex-col">
+            <motion.div variants={itemVariants} className="glass rounded-3xl p-6 md:p-8 flex flex-col border border-slate-200/90 dark:border-slate-800 shadow-md">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-lg text-white">Dimension Scores</h3>
+                  <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">Dimension Scores</h3>
                   <p className="text-xs soft mt-0.5">Scored across key evaluation criteria</p>
                 </div>
-                <div className="flex items-center gap-1 text-xs lime bg-lime-300/10 border border-lime-300/20 px-3 py-1 rounded-full font-semibold">
-                  <Zap size={14} /> AI Evaluated
+                <div className="flex items-center gap-1.5 text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 px-3.5 py-1 rounded-full font-bold shadow-xs">
+                  <Zap size={14} className="text-indigo-600 dark:text-indigo-400" /> AI Evaluated
                 </div>
               </div>
 
               <div className="flex-1 min-h-[340px] w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
-                    <CartesianGrid stroke="rgba(255,255,255,0.06)" horizontal={false} />
+                    <CartesianGrid stroke={isDark ? '#1e293b' : '#f1f5f9'} horizontal={false} />
                     <XAxis type="number" domain={[0, 100]} hide />
                     <YAxis
                       dataKey="name"
                       type="category"
                       width={140}
-                      tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
+                      tick={{ fill: isDark ? '#94a3b8' : '#475569', fontSize: 12, fontWeight: 600 }}
                       axisLine={false}
                       tickLine={false}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#0f172a',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '12px',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                        color: '#f8fafc'
+                        background: isDark ? '#0f172a' : '#ffffff',
+                        border: isDark ? '1px solid #334155' : '1px solid #e2e8f0',
+                        borderRadius: '14px',
+                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)',
+                        color: isDark ? '#f8fafc' : '#0f172a',
+                        fontWeight: 600
                       }}
-                      cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
+                      cursor={{ fill: isDark ? 'rgba(129, 140, 248, 0.12)' : 'rgba(99, 102, 241, 0.06)' }}
                     />
                     <Bar
                       dataKey="score"
-                      fill="#a7f65b"
+                      fill={isDark ? '#818cf8' : '#6366f1'}
                       radius={[0, 8, 8, 0]}
                       barSize={20}
                     />
@@ -203,66 +220,83 @@ export default function Results({ evaluation, messages, again }: { evaluation: a
           </div>
 
           {/* Actionable Playbook */}
-          <motion.div variants={itemVariants} className="glass rounded-3xl p-6 md:p-8">
-            <h3 className="font-bold text-xl text-white mb-1 flex items-center gap-2">
-              <Zap className="lime" size={20} /> Recommendations Playbook
+          <motion.div variants={itemVariants} className="glass rounded-3xl p-6 md:p-8 border border-slate-200/90 dark:border-slate-800 shadow-md">
+            <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 mb-1 flex items-center gap-2">
+              <Zap className="text-indigo-600 dark:text-indigo-400" size={20} /> Recommendations Playbook
             </h3>
             <p className="text-sm soft mb-6">Action steps to sharpen your next group discussion contribution</p>
 
             <div className="grid gap-4 md:grid-cols-3">
-              {evaluation.recommendations?.map((rec: string, i: number) => (
-                <motion.div
-                  key={rec}
-                  whileHover={{ y: -3 }}
-                  className="glass-card rounded-2xl p-5 border border-white/10 relative overflow-hidden flex flex-col justify-between"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-lime-300/10 font-bold text-sm lime">
-                      0{i + 1}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider font-bold soft">Action Item</span>
-                  </div>
-                  <p className="text-sm text-slate-200 leading-relaxed font-medium">{rec}</p>
-                </motion.div>
-              ))}
+              {evaluation.recommendations?.map((rec: string, i: number) => {
+                const badgeColors = isDark
+                  ? [
+                      'bg-blue-950/70 text-blue-300 border-blue-800/80',
+                      'bg-purple-950/70 text-purple-300 border-purple-800/80',
+                      'bg-rose-950/70 text-rose-300 border-rose-800/80'
+                    ]
+                  : [
+                      'bg-blue-100 text-blue-700 border-blue-200',
+                      'bg-purple-100 text-purple-700 border-purple-200',
+                      'bg-rose-100 text-rose-700 border-rose-200'
+                    ];
+                const badgeColor = badgeColors[i % badgeColors.length];
+                return (
+                  <motion.div
+                    key={rec}
+                    whileHover={{ y: -3 }}
+                    className="glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800/90 shadow-xs relative overflow-hidden flex flex-col justify-between"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className={`grid h-8 w-8 place-items-center rounded-xl font-bold text-xs border ${badgeColor}`}>
+                        0{i + 1}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400 dark:text-slate-500">Action Item</span>
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-semibold">{rec}</p>
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
 
           {/* Transcript Section */}
-          <motion.div variants={itemVariants} className="glass rounded-3xl p-6 md:p-8">
+          <motion.div variants={itemVariants} className="glass rounded-3xl p-6 md:p-8 border border-slate-200/90 dark:border-slate-800 shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div>
-                <h3 className="font-bold text-xl text-white flex items-center gap-2">
-                  <MessageSquare size={20} className="lime" /> Session Transcript
+                <h3 className="font-bold text-xl text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <MessageSquare size={20} className="text-indigo-600 dark:text-indigo-400" /> Session Transcript
                 </h3>
                 <p className="text-sm soft mt-0.5">{messages.length} total contributions recorded</p>
               </div>
               <button
                 onClick={copyTranscript}
-                className="btn btn-ghost text-xs py-2 px-3"
+                className="btn btn-ghost text-xs py-2 px-3.5 font-bold shadow-xs"
               >
-                {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                {copied ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={14} className="text-indigo-600 dark:text-indigo-400" />}
                 <span>{copied ? 'Copied!' : 'Copy Transcript'}</span>
               </button>
             </div>
 
-            <div className="max-h-96 overflow-y-auto space-y-3 pr-2 border-t border-white/10 pt-4">
-              {messages.map((m: any, i: number) => (
-                <div
-                  key={i}
-                  className={`rounded-2xl p-4 transition-colors ${
-                    m.speaker === 'You'
-                      ? 'bg-lime-300/5 border border-lime-300/20 text-right ml-auto max-w-[85%]'
-                      : 'bg-white/[0.03] border border-white/5 max-w-[85%]'
-                  }`}
-                >
-                  <div className={`flex items-center gap-2 mb-1 text-xs font-bold ${m.speaker === 'You' ? 'justify-end lime' : 'text-slate-300'}`}>
-                    <span>{m.speaker}</span>
-                    <span className="soft text-[10px] font-normal">· Round {m.round}</span>
+            <div className="max-h-96 overflow-y-auto space-y-3.5 pr-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+              {messages.map((m: any, i: number) => {
+                const isUser = m.speaker === 'You';
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-2xl p-4 transition-colors ${
+                      isUser
+                        ? 'bg-gradient-to-r from-indigo-50/90 to-violet-50/90 dark:from-indigo-950/50 dark:to-violet-950/50 border border-indigo-200/90 dark:border-indigo-800/80 text-right ml-auto max-w-[85%] shadow-xs'
+                        : 'bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 max-w-[85%] shadow-xs'
+                    }`}
+                  >
+                    <div className={`flex items-center gap-2 mb-1.5 text-xs font-bold ${isUser ? 'justify-end text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                      <span>{m.speaker}</span>
+                      <span className="soft text-[10px] font-normal">· Round {m.round}</span>
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-medium">{m.content}</p>
                   </div>
-                  <p className="text-sm text-slate-200 leading-relaxed">{m.content}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         </motion.div>

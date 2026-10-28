@@ -39,7 +39,11 @@ import {
   Compass,
   Lightbulb,
   Check,
-  Square
+  Square,
+  Volume2,
+  VolumeX,
+  RotateCcw,
+  Pause
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { ThemeToggle } from './theme-toggle';
@@ -47,7 +51,7 @@ import { ThemeToggle } from './theme-toggle';
 const Results = dynamic(() => import('./results'), { ssr: false });
 
 type Screen = 'auth' | 'home' | 'setup' | 'briefing' | 'discussion' | 'results';
-type Message = { speaker: string; role: string; content: string; round: number; timestamp?: string };
+type Message = { speaker: string; role: string; content: string; round: number; timestamp?: string; audio?: string | null };
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -302,6 +306,11 @@ export default function Home() {
   };
 
   const exitDiscussion = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
     const w = (window as any).__gdSocket as WebSocket | undefined;
     if (w) {
       try {
@@ -924,11 +933,13 @@ function AgentCard({
   persona,
   messages,
   thinking,
+  isSpeaking,
   onOpenHistory
 }: {
   persona: any;
   messages: Message[];
   thinking: string;
+  isSpeaking?: boolean;
   onOpenHistory: () => void;
 }) {
   const isPersonaThinking = thinking === persona.name;
@@ -940,11 +951,11 @@ function AgentCard({
       whileHover={{ scale: 1.02 }}
       onClick={onOpenHistory}
       style={{
-        borderColor: isPersonaThinking ? persona.color : undefined,
-        boxShadow: isPersonaThinking ? `0 8px 30px ${persona.glow}` : undefined
+        borderColor: isSpeaking || isPersonaThinking ? persona.color : undefined,
+        boxShadow: isSpeaking || isPersonaThinking ? `0 8px 30px ${persona.glow}` : undefined
       }}
       className={`relative rounded-3xl p-5 border transition-all cursor-pointer min-h-[160px] md:min-h-[175px] flex flex-col justify-between shadow-md ${
-        isPersonaThinking
+        isSpeaking || isPersonaThinking
           ? 'bg-white dark:bg-slate-900 border-2'
           : 'bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-900 border-slate-200/90 dark:border-slate-800'
       }`}
@@ -964,11 +975,23 @@ function AgentCard({
           </div>
         </div>
 
-        {latestMessage && (
-          <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
-            Round {latestMessage.round}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {isSpeaking && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+              <span className="flex items-end gap-0.5 h-2.5">
+                <motion.span animate={{ height: ['2px', '8px', '2px'] }} transition={{ repeat: Infinity, duration: 0.5 }} className="w-0.5 bg-emerald-500 rounded-full" />
+                <motion.span animate={{ height: ['5px', '10px', '3px'] }} transition={{ repeat: Infinity, duration: 0.4, delay: 0.1 }} className="w-0.5 bg-emerald-500 rounded-full" />
+                <motion.span animate={{ height: ['8px', '3px', '8px'] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-0.5 bg-emerald-500 rounded-full" />
+              </span>
+              <span>Speaking</span>
+            </span>
+          )}
+          {latestMessage && (
+            <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+              Round {latestMessage.round}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Card Content */}
@@ -1074,7 +1097,6 @@ function Discussion({
 }: any) {
   const totalSeconds = Math.max(1, Number(session.duration || 8) * 60);
   const [remaining, setRemaining] = useState(totalSeconds);
-  const isTimerPaused = Boolean(readingPopup);
   const [popupSeconds, setPopupSeconds] = useState(60);
   const [viewMode, setViewMode] = useState<'diamond' | 'feed'>('diamond');
   const [userFlash, setUserFlash] = useState<{ content: string; round: number } | null>(null);
@@ -1083,6 +1105,119 @@ function Discussion({
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Audio & TTS readout states
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [activeSpeechSpeaker, setActiveSpeechSpeaker] = useState<string | null>(null);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Discussion timer strictly pauses whenever readingPopup is displayed OR audio is playing out loud
+  const isTimerPaused = Boolean(readingPopup) || isAudioPlaying;
+
+  const stopAllAudio = () => {
+    if (activeAudioRef.current) {
+      try {
+        activeAudioRef.current.pause();
+        activeAudioRef.current.currentTime = 0;
+      } catch {}
+      activeAudioRef.current = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    setIsAudioPlaying(false);
+    setActiveSpeechSpeaker(null);
+  };
+
+  const playUtteranceFallback = (text: string, speakerName: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      setIsAudioPlaying(false);
+      setActiveSpeechSpeaker(null);
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      if (speakerName === 'Challenger') {
+        utterance.pitch = 0.85;
+        utterance.rate = 1.05;
+      } else if (speakerName === 'Creative') {
+        utterance.pitch = 1.25;
+        utterance.rate = 1.1;
+      } else if (speakerName === 'Balanced') {
+        utterance.pitch = 1.0;
+        utterance.rate = 0.95;
+      } else {
+        utterance.pitch = 0.95;
+        utterance.rate = 1.0;
+      }
+      utterance.onstart = () => {
+        setIsAudioPlaying(true);
+        setActiveSpeechSpeaker(speakerName);
+      };
+      utterance.onend = () => {
+        setIsAudioPlaying(false);
+        setActiveSpeechSpeaker(null);
+      };
+      utterance.onerror = () => {
+        setIsAudioPlaying(false);
+        setActiveSpeechSpeaker(null);
+      };
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setIsAudioPlaying(false);
+      setActiveSpeechSpeaker(null);
+    }
+  };
+
+  const playMessageAudio = (msg: { content: string; speaker: string; audio?: string | null }) => {
+    if (isMuted) return;
+    stopAllAudio();
+
+    if (msg.audio) {
+      try {
+        const audio = new Audio(msg.audio);
+        activeAudioRef.current = audio;
+        setIsAudioPlaying(true);
+        setActiveSpeechSpeaker(msg.speaker);
+
+        audio.onended = () => {
+          setIsAudioPlaying(false);
+          setActiveSpeechSpeaker(null);
+          activeAudioRef.current = null;
+        };
+        audio.onerror = () => {
+          activeAudioRef.current = null;
+          playUtteranceFallback(msg.content, msg.speaker);
+        };
+        audio.play().catch((err) => {
+          console.warn('[Audio Playback Blocked or Fallback]:', err);
+          playUtteranceFallback(msg.content, msg.speaker);
+        });
+      } catch (err) {
+        playUtteranceFallback(msg.content, msg.speaker);
+      }
+    } else {
+      playUtteranceFallback(msg.content, msg.speaker);
+    }
+  };
+
+  // Automatically read participant response out loud when popup appears
+  useEffect(() => {
+    if (!readingPopup) {
+      stopAllAudio();
+      return;
+    }
+    if (!isMuted) {
+      playMessageAudio(readingPopup);
+    }
+    return () => {
+      stopAllAudio();
+    };
+  }, [readingPopup, isMuted]);
 
   useEffect(() => {
     setRemaining(totalSeconds);
@@ -1111,6 +1246,7 @@ function Discussion({
       setPopupSeconds((prev) => {
         if (prev <= 1) {
           window.clearInterval(timer);
+          stopAllAudio();
           onDismissReadingPopup();
           return 0;
         }
@@ -1447,10 +1583,24 @@ function Discussion({
               <span>{minutes}:{seconds}</span>
               {isTimerPaused && (
                 <span className="text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                  Paused
+                  {isAudioPlaying ? 'Voice Reading (Paused)' : 'Paused'}
                 </span>
               )}
             </span>
+
+            {/* TTS Mute Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                if (!isMuted) stopAllAudio();
+                setIsMuted((prev) => !prev);
+              }}
+              title={isMuted ? 'Unmute AI voices' : 'Mute AI voices'}
+              className="px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer shadow-xs"
+            >
+              {isMuted ? <VolumeX size={15} className="text-rose-500" /> : <Volume2 size={15} className="text-emerald-500" />}
+              <span className="hidden sm:inline">{isMuted ? 'Muted' : 'TTS Voice'}</span>
+            </button>
 
             {/* Theme Toggle */}
             <ThemeToggle />
@@ -1496,7 +1646,10 @@ function Discussion({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/75 dark:bg-black/80 backdrop-blur-md"
-                onClick={onDismissReadingPopup}
+                onClick={() => {
+                  stopAllAudio();
+                  onDismissReadingPopup();
+                }}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9, y: 16 }}
@@ -1541,6 +1694,22 @@ function Discussion({
                           <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${persona.badge}`}>
                             Round {readingPopup.round}
                           </span>
+                          {isAudioPlaying ? (
+                            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold shadow-xs">
+                              <span className="flex items-end gap-0.5 h-3">
+                                <motion.span animate={{ height: ['4px', '12px', '4px'] }} transition={{ repeat: Infinity, duration: 0.5 }} className="w-0.5 bg-emerald-500 rounded-full" />
+                                <motion.span animate={{ height: ['7px', '14px', '5px'] }} transition={{ repeat: Infinity, duration: 0.4, delay: 0.1 }} className="w-0.5 bg-emerald-500 rounded-full" />
+                                <motion.span animate={{ height: ['11px', '5px', '12px'] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }} className="w-0.5 bg-emerald-500 rounded-full" />
+                                <motion.span animate={{ height: ['5px', '13px', '6px'] }} transition={{ repeat: Infinity, duration: 0.45, delay: 0.15 }} className="w-0.5 bg-emerald-500 rounded-full" />
+                              </span>
+                              <span>Reading Aloud</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-semibold">
+                              <Volume2 size={11} />
+                              <span>TTS Ready</span>
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs md:text-sm font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
                           {persona.roleTitle}
@@ -1584,6 +1753,56 @@ function Discussion({
                     </div>
                   </div>
 
+                  {/* TTS Voice Controls & Discussion Timer Paused Notice */}
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/90 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-200 shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <Clock3 size={15} className="text-amber-600 dark:text-amber-400 shrink-0 animate-pulse" />
+                      <span className="font-semibold text-[11px] sm:text-xs">Discussion timer paused while response is read aloud</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isAudioPlaying ? (
+                        <button
+                          type="button"
+                          onClick={stopAllAudio}
+                          className="px-2.5 py-1 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/60 dark:hover:bg-amber-900/90 text-amber-900 dark:text-amber-100 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                          title="Pause Voice"
+                        >
+                          <Pause size={12} />
+                          <span>Pause</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => playMessageAudio(readingPopup)}
+                          className="px-2.5 py-1 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/60 dark:hover:bg-amber-900/90 text-amber-900 dark:text-amber-100 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                          title="Play Voice"
+                        >
+                          <Play size={12} />
+                          <span>Play</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => playMessageAudio(readingPopup)}
+                        className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 text-amber-800 dark:text-amber-200 cursor-pointer transition-colors shadow-xs"
+                        title="Replay Voice"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isMuted) stopAllAudio();
+                          setIsMuted((prev) => !prev);
+                        }}
+                        className="p-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 text-amber-800 dark:text-amber-200 cursor-pointer transition-colors shadow-xs"
+                        title={isMuted ? 'Unmute' : 'Mute'}
+                      >
+                        {isMuted ? <VolumeX size={12} className="text-rose-600" /> : <Volume2 size={12} className="text-emerald-600" />}
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Subtitle / Strategy Note */}
                   <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
                     <span className="text-base">{persona.avatarEmoji}</span>
@@ -1598,7 +1817,10 @@ function Discussion({
 
                     <button
                       type="button"
-                      onClick={onDismissReadingPopup}
+                      onClick={() => {
+                        stopAllAudio();
+                        onDismissReadingPopup();
+                      }}
                       style={{
                         background: `linear-gradient(135deg, ${persona.color}, #4f46e5)`
                       }}
@@ -1845,6 +2067,7 @@ function Discussion({
                     persona={people[0]}
                     messages={messages}
                     thinking={thinking}
+                    isSpeaking={isAudioPlaying && activeSpeechSpeaker === people[0].name}
                     onOpenHistory={() => setSelectedAgent(people[0].name)}
                   />
                 </div>
@@ -1855,6 +2078,7 @@ function Discussion({
                     persona={people[1]}
                     messages={messages}
                     thinking={thinking}
+                    isSpeaking={isAudioPlaying && activeSpeechSpeaker === people[1].name}
                     onOpenHistory={() => setSelectedAgent(people[1].name)}
                   />
                 </div>
@@ -1876,6 +2100,7 @@ function Discussion({
                     persona={people[2]}
                     messages={messages}
                     thinking={thinking}
+                    isSpeaking={isAudioPlaying && activeSpeechSpeaker === people[2].name}
                     onOpenHistory={() => setSelectedAgent(people[2].name)}
                   />
                 </div>
@@ -1886,6 +2111,7 @@ function Discussion({
                     persona={people[3]}
                     messages={messages}
                     thinking={thinking}
+                    isSpeaking={isAudioPlaying && activeSpeechSpeaker === people[3].name}
                     onOpenHistory={() => setSelectedAgent(people[3].name)}
                   />
                 </div>
@@ -1928,6 +2154,30 @@ function Discussion({
                           <div className={`mb-1 flex items-center gap-2 text-xs font-bold ${isUser ? 'justify-end text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-200'}`}>
                             <span>{m.speaker}</span>
                             <span className="soft text-[10px] font-normal">· Round {m.round}</span>
+                            {!isUser && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isAudioPlaying && activeSpeechSpeaker === m.speaker) {
+                                    stopAllAudio();
+                                  } else {
+                                    playMessageAudio(m);
+                                  }
+                                }}
+                                title={isAudioPlaying && activeSpeechSpeaker === m.speaker ? 'Stop voice readout' : 'Listen to response'}
+                                className="ml-1.5 flex items-center gap-1 text-[10px] font-semibold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 px-1.5 py-0.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                              >
+                                {isAudioPlaying && activeSpeechSpeaker === m.speaker ? (
+                                  <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1 font-bold">
+                                    <VolumeX size={11} /> Stop
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <Volume2 size={11} /> Listen
+                                  </span>
+                                )}
+                              </button>
+                            )}
                           </div>
                           <div
                             className={`rounded-2xl p-4 text-xs md:text-sm leading-relaxed shadow-xs font-medium ${

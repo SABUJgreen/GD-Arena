@@ -82,5 +82,7 @@ When no LLM API key is provided, the agents operate in **Demo Mode**:
 
 ### Live Mode (LLM)
 When a `GEMINI_API_KEY` is present:
-- **Dynamic Agents:** Each persona uses a specialized system prompt to generate unique, context-aware responses using Gemini 3.8 Flash.
+- **Dynamic Agents:** Each persona generates unique, context-aware responses using gemini-3.5-flash-lite.
+- **Text-to-Speech (TTS):** Spoken audio for each participant is synthesized using gemini-3.8-flash-lite-tts-preview with dedicated persona voices (Analytical: Puck, Challenger: Fenrir, Creative: Aoede, Balanced: Kore).
+- **Smart Discussion Clock:** The actual discussion timer automatically pauses while an AI participant's response is read aloud, ensuring listening time never consumes candidate contribution time.
 - **AI Evaluation:** The Judge uses Gemini with structured JSON output to analyze the nuances of the user's arguments across 9 dimensions and provide detailed feedback.

@@ -16,6 +16,7 @@ from .repository import repo
 from agents.judge import choose_topic, evaluate
 from agents.graph import next_agent_message
 from agents.participants import PARTICIPANTS
+from agents.tts import synthesize_participant_speech
 
 app = FastAPI(title="GD Arena API")
 app.add_middleware(
@@ -113,6 +114,17 @@ async def transcribe_speech(file: UploadFile = File(...)):
     return {"text": ""}
 
 
+class TTSPayload(BaseModel):
+    text: str
+    speaker: str = "Analytical"
+
+
+@app.post("/api/speech/synthesize")
+async def synthesize_speech_endpoint(payload: TTSPayload):
+    audio_uri = await asyncio.to_thread(synthesize_participant_speech, payload.text, payload.speaker)
+    return {"audio": audio_uri, "speaker": payload.speaker}
+
+
 @app.post("/api/auth/register")
 def register(payload: AuthPayload, response: Response):
     if repo.get_user(payload.email):
@@ -175,9 +187,25 @@ def history(gd_token: str | None = Cookie(default=None)):
 async def send_agent(ws: WebSocket, session_id: str, agent_index: int, round_number: int):
     discussion = repo.get(session_id)
     if not discussion: return
-    await ws.send_json({"type": "thinking", "speaker": PARTICIPANTS[agent_index].name})
+    speaker_name = PARTICIPANTS[agent_index].name
+    await ws.send_json({"type": "thinking", "speaker": speaker_name})
     await asyncio.sleep(0.45)
-    message = next_agent_message(discussion.topic, discussion.messages, agent_index, round_number)
+    message = next_agent_message(
+        discussion.topic,
+        discussion.messages,
+        agent_index,
+        round_number,
+        target_role=discussion.category,
+        difficulty=discussion.difficulty,
+    )
+    # Synthesize participant speech using gemini-3.8-flash-lite-tts-preview
+    try:
+        audio_uri = await asyncio.to_thread(synthesize_participant_speech, message.content, speaker_name)
+        message.audio = audio_uri
+    except Exception as e:
+        print(f"[TTS Generation Error ({speaker_name})]: {e}")
+        message.audio = None
+
     repo.add_message(session_id, message)
     await ws.send_json({"type": "message", "message": message.model_dump(mode="json")})
 

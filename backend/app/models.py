@@ -18,6 +18,7 @@ class Message(BaseModel):
     content: str
     round: int
     timestamp: datetime = Field(default_factory=now)
+    audio: str | None = None
 
 
 class Evaluation(BaseModel):

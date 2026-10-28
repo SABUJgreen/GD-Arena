@@ -71,16 +71,22 @@ The arena features five active roles (4 AI panelists + 1 human user), supervised
 
 | Name | Role Title | Core Strategy & Behavior | Accent Color |
 | :--- | :--- | :--- | :--- |
-| **Analytical** | The Data Detective | Grounds arguments with concrete metrics, ROI, trade-offs, and cause-and-effect data. Prevents vague hand-waving. | Blue (`#2563eb`) |
-| **Challenger** | The Devil's Advocate | Pressure-tests consensus. Respectfully identifies unstated assumptions, risks, edge cases, and contrarian perspectives. | Rose / Coral (`#e11d48`) |
-| **Creative** | The Horizon Scanner | Unlocks unexpected lateral frameworks, cross-industry analogies, futuristic models, and non-obvious alternatives. | Amber / Gold (`#d97706`) |
-| **Balanced** | The Consensus Builder | Connects fragmented viewpoints, resolves disputes, finds common ground, and drives the room toward actionable synthesis. | Violet / Purple (`#7c3aed`) |
+| **Analytical** | Data-Driven Analyst | Grounds arguments with concrete metrics, ROI, trade-offs, and cause-and-effect data. Prevents vague hand-waving. | Blue (`#2563eb`) |
+| **Challenger** | Devil's Advocate & Risk Evaluator | Pressure-tests consensus. Respectfully identifies unstated assumptions, risks, edge cases, and contrarian perspectives. | Rose / Coral (`#e11d48`) |
+| **Creative** | Innovation Strategist & Lateral Thinker | Unlocks unexpected lateral frameworks, cross-industry analogies, futuristic models, and experimental alternatives. | Amber / Gold (`#d97706`) |
+| **Balanced** | Strategic Synthesizer & Consensus Builder | Connects fragmented viewpoints, resolves disputes, finds common ground, and drives the room toward actionable synthesis. | Violet / Purple (`#7c3aed`) |
+
+### Role-Aware Panelist Architecture
+All four AI panelists dynamically adapt their vocabulary, frameworks, and evaluation criteria based on the active session configuration:
+- **`target_role` (`category`):** Automatically injects domain-specific knowledge and priorities (e.g., Product Management focuses on user friction, RICE prioritization, and adoption/retention metrics; Consulting emphasizes MECE structuring, hypothesis testing, and cost-benefit trade-offs; Technology focuses on scalability, SLAs, and technical debt; Sales focuses on qualification, value propositions, and objection handling).
+- **`candidate_level` (`difficulty`):** Calibrates the probing depth from Junior/Entry-Level (accessible, foundational questions) to Mid-Level (structured trade-off justification) and Senior/Executive (rigorous scrutiny on second-order system dynamics and hidden risks).
+- **`panelist_objective` & `other_panelists`:** Informs each persona of their unique tactical goal and how their peers are positioned around the table, fostering realistic, organic discussion dynamics.
 
 ### Execution Modes
 1. **Live Mode (LLM Enabled - `GEMINI_API_KEY` present):**
-   - Each persona evaluates recent conversation history and generates concise (max 2 sentences), in-character contributions tailored specifically to what the user and peers just stated.
+   - Each persona uses the structured role-aware system prompt to evaluate recent conversation history and generate 2-3 concise, in-character contributions directly engaging peer and candidate arguments.
 2. **Demo Mode (Fallback when no key is set):**
-   - Personas draw from curated, context-anchored response templates that align with the chosen topic and round phase, ensuring a working demonstration out of the box.
+   - Personas draw from dynamic, role-interpolated response templates that anchor back to the chosen category and topic, ensuring authentic demonstrations without an external API key.
 
 ---
 
@@ -296,6 +302,7 @@ gpd/
 - [x] **Clean Visual Polish:** Removed distracting blinking/beeping badges in favor of calm, static badges.
 - [x] **Click-Outside Modal Dismissal:** Robust dropdown and modal dismissal via `mousedown` and `Escape` key listeners.
 - [x] **Authentication & Replay History:** User registration, login, past sessions list, and full transcript replay.
+- [x] **Role-Aware Panelist Architecture:** Dynamic role adaptation across all 4 personas based on selected category, difficulty/candidate level, objective, and domain knowledge.
 
 ---
 

@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     mongodb_database: str = "gd_arena"
     gemini_api_key: str = ""
     llm_model: str = "gemini-3.5-flash-lite"
+    tts_model: str = "gemini-3.8-flash-lite-tts-preview"
     jwt_secret: str = "change-me"
     backend_url: str = "http://localhost:8000"
     next_public_api_url: str = "http://localhost:8000"

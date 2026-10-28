@@ -1588,7 +1588,7 @@ function Discussion({
               )}
             </span>
 
-            {/* TTS Mute Toggle */}
+            {/* AI Voice Toggle */}
             <button
               type="button"
               onClick={() => {
@@ -1599,7 +1599,7 @@ function Discussion({
               className="px-3 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer shadow-xs"
             >
               {isMuted ? <VolumeX size={15} className="text-rose-500" /> : <Volume2 size={15} className="text-emerald-500" />}
-              <span className="hidden sm:inline">{isMuted ? 'Muted' : 'TTS Voice'}</span>
+              <span className="hidden sm:inline">{isMuted ? 'Muted' : 'AI Voice'}</span>
             </button>
 
             {/* Theme Toggle */}
@@ -1707,7 +1707,7 @@ function Discussion({
                           ) : (
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-[10px] font-semibold">
                               <Volume2 size={11} />
-                              <span>TTS Ready</span>
+                              <span>AI Voice Ready</span>
                             </span>
                           )}
                         </div>
